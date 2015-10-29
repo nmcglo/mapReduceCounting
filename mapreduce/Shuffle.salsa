@@ -1,0 +1,68 @@
+
+module mapreduce;
+
+import java.util.Vector;
+import java.util.HashMap;
+
+behavior Shuffle
+{
+  public MapReduce kernel;
+  public HashMap dict;
+  // public Vector allPairs;
+  public int myID;
+
+  public Shuffle(MapReduce mr, int theid) 
+  {
+    // System.out.println("Creating New Shuffler");
+    kernel = mr;
+    dict = new HashMap();
+    // allPairs = new Vector();
+    myID = theid;
+  }
+
+
+  public HashMap shuffle(Object[] v)
+  {
+    standardOutput <- println("Received Shuffle Command");
+
+    //For each output from a mapper
+    for(int i = 0; i < v.length; i++)
+    { 
+
+      Vector vec = (Vector) v[i]; //cast to vector
+      // System.out.println(vec);
+      //For each pair in that vector
+      for(int j = 0; j < vec.size(); j++)
+      { 
+        Pair pair = (Pair) vec.get(j);
+        //If the dictionary does not the key (the word we're counting):
+        if (!dict.containsKey(pair.key))
+        { 
+          //then we add the pair to the dictionary in the correct format
+          Pair docFreqPair = (Pair) pair.value;
+          // System.out.println(docFreqPair);
+          Vector theVec = new Vector();
+          theVec.add(docFreqPair); //add (d#, 1) to the empty vector
+          dict.put(pair.key, theVec);
+        }
+        else
+        { 
+          //then we append to its value a (d#,1) pair
+          Vector theValVec = (Vector) dict.get(pair.key);
+          Pair docFreqPair = (Pair) pair.value;
+          // System.out.println(theValVec);
+          theValVec.add(docFreqPair);
+          dict.put(pair.key, theValVec);
+        }
+      }
+      // System.out.println(v[i]);
+      // allPairs.addElement(v[i]);
+    }
+
+    // System.out.println(dict);
+    standardOutput <- println("Returning Dictionary"); //the dictinoary will go to the reducers to count up
+    return dict;
+  }
+  
+}
+

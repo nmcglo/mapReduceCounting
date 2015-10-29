@@ -1,0 +1,66 @@
+
+module mapreduce;
+
+import java.util.Vector;
+import java.util.HashMap;
+
+behavior Shuffle
+{
+  public MapReduce kernel;
+  public HashMap dict;
+  // public Vector allPairs;
+  public int myID;
+
+  public Shuffle(MapReduce mr, int theid) 
+  {
+    // System.out.println("Creating New Shuffler");
+    kernel = mr;
+    dict = new HashMap();
+    // allPairs = new Vector();
+    myID = theid;
+  }
+
+
+  public HashMap shuffle(Object[] v)
+  {
+    for(int i = 0; i < v.length; i++)
+    { 
+      Vector vec = (Vector) v[i];
+      // System.out.println(vec);
+      for(int j = 0; j < vec.size(); j++)
+      { 
+        Pair pair = (Pair) vec.get(j);
+        if (!dict.containsKey(pair.key))
+        {
+          Pair docFreqPair = (Pair) pair.value;
+          // System.out.println(docFreqPair);
+          Vector theVec = new Vector();
+          theVec.add(docFreqPair);
+          dict.put(pair.key, theVec);
+        }
+        else
+        { 
+          Vector theValVec = (Vector) dict.get(pair.key);
+          Pair docFreqPair = (Pair) pair.value;
+          // System.out.println(theValVec);
+          theValVec.add(docFreqPair);
+          dict.put(pair.key, theValVec);
+        }
+      }
+      // System.out.println(v[i]);
+      // allPairs.addElement(v[i]);
+    }
+
+    // System.out.println(dict);
+    return dict;
+  }
+
+
+
+  // public Pair shuffle(Vector p, Shuffle[] shufflers) 
+  // {
+  //  return new Pair(5,5);
+  //   // return kernel.shuffle(p, shufflers); // use the shuffle function of the kernel
+  // }
+}
+

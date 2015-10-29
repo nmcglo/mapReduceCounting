@@ -1,0 +1,187 @@
+module mapreduce;
+
+import java.util.HashMap;
+
+behavior MapReduceProblem {
+  MapReduce kernel; // containing the number of mappers, shufflers and reducers, and map and reduce methods
+  Map[] mapActors;
+  Shuffle[] shuffleActors;
+  Reduce[] reduceActors;
+
+  // constructor for MapReduceProblem, need to modify for distributed computation
+  public MapReduceProblem(MapReduce mr) {
+    kernel = mr;
+    mapActors = new Map[mr.nMappers()];
+    System.out.print("Constructing Mappers: ");
+    System.out.println(mr.nMappers());
+    for (int i = 0; i < mapActors.length; ++i)
+    {
+      mapActors[i] = new Map(mr);
+    }
+
+    System.out.print("Constructing Shufflers: ");
+    System.out.println(mr.nShufflers());
+    shuffleActors = new Shuffle[mr.nShufflers()];
+    for (int i = 0; i < shuffleActors.length; ++i) 
+    {
+      shuffleActors[i] = new Shuffle(mr,i); // change the constructor of the Shuffle behavior according to your own definition
+    }
+
+    System.out.print("Constructing Reducers: ");
+    System.out.println(mr.nReducers());
+    reduceActors = new Reduce[mr.nReducers()];
+    for (int i = 0; i < reduceActors.length; ++i)
+    {
+      reduceActors[i] = new Reduce(mr);
+    } 
+
+  }
+
+  Object[] theToken(Object[] obj)
+  {
+  	return obj;
+  }
+
+  Object[] shufflingHandle(Object[] rec)
+  {
+  	for(int i = 0; i<rec.length; i++)
+  	{
+  		standardOutput <- println(rec[i]);
+  	}
+  	return rec;
+  }
+
+  Object[] runMappers(Vector inputPairs)
+  {
+    System.out.println("Mapping...");
+	join
+    {
+      for(int i = 0; i < inputPairs.size(); ++i)
+    	{
+    		int whichActor = i % kernel.nMappers();
+        System.out.println("Sending to mapper: " + whichActor);
+    		mapActors[whichActor] <- map((Pair) inputPairs.get(i));
+
+    	}
+      if(inputPairs.size() < kernel.nMappers())
+        System.out.println("Not all mappers utilized, #docs < #mappers");
+
+    }@theToken(token)@currentContinuation;
+  }
+
+  Object[] runShufflers(Object[] tok)
+  {
+    System.out.println("Shuffling...");
+    join
+    {
+      for(int i = 0; i < kernel.nShufflers(); ++i)
+      { 
+        // System.out.println(tok);
+        System.out.println("Sending to shuffler: " + i);
+
+        shuffleActors[i] <- shuffle(tok);
+      }  
+    }@theToken(token)@currentContinuation;
+
+  }
+
+  void runReducers(Object[] tok)
+  {
+    System.out.println("Reducing...");
+    HashMap toReducers = (HashMap) tok[0];
+    Object[] keys = toReducers.keySet().toArray();
+
+    join
+    {
+      for(int i = 0; i < keys.length; i++)
+      {
+        Pair p = new Pair(keys[i],toReducers.get(keys[i]));
+        int whichActor = i % kernel.nReducers();
+        System.out.println("Sending to reducer: " + whichActor);
+        reduceActors[whichActor] <- reduce(p);
+      }
+      if(keys.length < kernel.nShufflers())
+        System.out.println("Not all reducers utilized, #keys < #reducers");
+    }@theToken(token)@currentContinuation;
+
+  }
+
+  void writeOutput(Object[] tok, String outputFilename)
+  {
+    System.out.println("Writing to output...");
+    Vector vec = new Vector();
+    for(int i = 0; i < tok.length; i++)
+    {
+      vec.add(tok[i]);
+    }
+
+    output(vec,outputFilename);
+
+
+  }
+
+  void printToken(Object[] tok)
+  {
+  	for(int i  = 0; i < tok.length; i++)
+  	{
+  		System.out.println((Vector) tok[i]);
+  	}
+  }
+
+  void checkShufflers()
+  {
+  	// token x = shuffleActors[0] <- getAllPairs()@
+  	// standardOutput <- println(x);
+  }
+
+  // TODO: define the framework with functions of the kernel, define the Shuffle behavior, and distribute work among mappers, shufflers and reducers 
+  void runMapReduce(String inputFilename, String outputFilename) 
+  {
+    PairReader pr = new PairReader(inputFilename);
+    Vector inputPairs = new Vector();
+    Pair ret;
+    int i = 0;
+    while(true)
+    {
+      ret = pr.readPair();
+      if (ret != null)
+        inputPairs.add(ret);
+      else
+        break;
+
+      i++;
+    }
+
+    runMappers(inputPairs)@
+    runShufflers(token)@
+    runReducers(token)@
+    writeOutput(token, outputFilename);
+
+
+  }
+
+  // write a vector of pairs to the output file
+  void output(Vector v, String outputFilename)
+  {
+    PairWriter pw = new PairWriter(outputFilename);
+    for (int i = 0; i < v.size(); ++i) 
+    {
+      pw.writePair((Pair)v.get(i));
+    }
+    pw.close();
+  }
+
+  // sample usage for character counting kernel, change the kernel to word document frequency after implementing the framework
+  void act(String[] args) {
+  	System.out.println("Creating problem...");
+    int m = Integer.parseInt(args[2]); // number of mappers
+    int s = Integer.parseInt(args[3]); // number of shufflers
+    int r = Integer.parseInt(args[4]); // number of reducers
+    MapReduce wc = new WordCountMapReduce(m, s, r);
+    MapReduceProblem wordCount = new MapReduceProblem(wc);
+    String inputFilename = args[0];
+    String outputFilename = args[1];
+    wordCount <- runMapReduce(inputFilename, outputFilename);
+  }
+}
+

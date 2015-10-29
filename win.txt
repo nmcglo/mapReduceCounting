@@ -1,0 +1,6 @@
+d1	and	is	program	program	the
+d2	a	apply	copyleft	free	free	freedom
+d3	copyleft	copyleft	share	share	users
+d4	released	software	works
+d5	licenses	licenses	licenses	licenses	licenses	software
+d8	apply

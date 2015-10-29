@@ -1,0 +1,45 @@
+module mapreduce;
+
+behavior MapReduceProblem {
+  MapReduce kernel; // containing the number of mappers, shufflers and reducers, and map and reduce methods
+  Map[] mapActors;
+  Shuffle[] shuffleActors;
+  Reduce[] reduceActors;
+
+  // constructor for MapReduceProblem, need to modify for distributed computation
+  public MapReduceProblem(MapReduce mr) {
+    kernel = mr;
+    mapActors = new Map[mr.nMappers()];
+    for (int i = 0; i < mapActors.length; ++i) mapActors[i] = new Map(mr);
+    shuffleActors = new Shuffle[mr.nShufflers()];
+    for (int i = 0; i < shuffleActors.length; ++i) 
+      shuffleActors[i] = new Shuffle(); // change the constructor of the Shuffle behavior according to your own definition
+    reduceActors = new Reduce[mr.nReducers()];
+    for (int i = 0; i < reduceActors.length; ++i) reduceActors[i] = new Reduce(mr);
+  }
+
+  // TODO: define the framework with functions of the kernel, define the Shuffle behavior, and distribute work among mappers, shufflers and reducers 
+  void runMapReduce(String inputFilename, String outputFilename) {
+    
+  }
+
+  // write a vector of pairs to the output file
+  void output(Vector v, String outputFilename) {
+    PairWriter pw = new PairWriter(outputFilename);
+    for (int i = 0; i < v.size(); ++i) pw.writePair((Pair)v.get(i));
+    pw.close();
+  }
+
+  // sample usage for character counting kernel, change the kernel to word document frequency after implementing the framework
+  void act(String[] args) {
+    int m = Integer.parseInt(args[2]); // number of mappers
+    int s = Integer.parseInt(args[3]); // number of shufflers
+    int r = Integer.parseInt(args[4]); // number of reducers
+    MapReduce cc = new CharCountMapReduce(m, s, r);
+    MapReduceProblem charCount = new MapReduceProblem(cc);
+    String inputFilename = args[0];
+    String outputFilename = args[1];
+    charCount <- runMapReduce(inputFilename, outputFilename);
+  }
+}
+

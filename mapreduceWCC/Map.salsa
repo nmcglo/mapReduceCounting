@@ -1,0 +1,12 @@
+module mapreduce;
+
+behavior Map {
+  MapReduce kernel;
+  public Map(MapReduce mr) {
+    kernel = mr;
+  }
+  Vector map(Pair p) {
+    return kernel.map(p); // use the map function of the kernel 
+  }
+}
+
